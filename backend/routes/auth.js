@@ -1,4 +1,5 @@
 const express = require('express');
+const { googleAuthCallback } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 const {
   registerUser,
@@ -28,5 +29,18 @@ router.put('/change-password', auth, changePassword);
 
 // Logout user (protected route)
 router.post('/logout', auth, logoutUser);
+
+// Try to add Google OAuth routes if passport is available
+
+const passport = require('passport');
+
+// Google OAuth routes
+router.get('/google',passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+router.get('/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  googleAuthCallback
+);
 
 module.exports = router;

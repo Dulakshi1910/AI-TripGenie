@@ -290,11 +290,48 @@ const logoutUser = async (req, res) => {
   }
 };
 
+// In your auth controller
+const googleAuthCallback = async (req, res) => {
+  console.log("GOOGLE AUTH CALLBACK BACKEND HIT");
+
+  try {
+    if (!req.user) {
+      console.log("No user in request");
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+    }
+
+    // Passport has already handled the authentication and attached the user to req
+    const token = generateToken(req.user._id);
+    console.log("Token generated:", token.substring(0, 20) + '...');
+
+    if (req.query.format === 'json') {
+      return res.json({
+        success: true,
+        message: 'Google login successful',
+        token,
+        data: {
+          user: req.user
+        }
+      });
+    }
+
+    // You should set FRONTEND_URL in your .env file to redirect to frontend with token
+    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`;
+    console.log('Redirecting to:', redirectUrl);
+    res.redirect(redirectUrl);
+
+  } catch (error) {
+    console.error('Google callback error:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getCurrentUser,
   updateProfile,
   changePassword,
-  logoutUser
+  logoutUser,
+  googleAuthCallback
 };

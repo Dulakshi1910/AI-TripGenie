@@ -15,7 +15,7 @@ if (missingEnvVars.length > 0) {
 
 const app = express();
 
-//Middleware
+// Middleware
 app.use(express.json());
 app.use("/",(req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
@@ -23,6 +23,21 @@ app.use("/",(req, res, next) => {
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   next();
 });
+
+// Try to initialize Passport if available
+try {
+  const passport = require('passport');
+  require('./config/passport');
+  app.use(passport.initialize());
+  console.log('Passport initialized successfully');
+} catch (error) {
+  if (error.code === 'MODULE_NOT_FOUND') {
+    console.warn('Passport module not found. Google OAuth will not be available.');
+    console.warn('Run "npm install passport passport-google-oauth20" to enable Google login.');
+  } else {
+    console.error('Error initializing passport:', error);
+  }
+}
 
 // Connect to database
 connectDB();
