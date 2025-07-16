@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardCard from '../components/dashboard/DashboardCard';
 
@@ -70,12 +71,15 @@ const Dashboard: React.FC = () => {
           <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-8 border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
             <div className="space-y-4">
-              <button className="w-full flex items-center space-x-4 p-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105">
+              <Link 
+                to="/dashboard/plan"
+                className="w-full flex items-center space-x-4 p-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105"
+              >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 <span className="font-medium">Plan New Trip</span>
-              </button>
+              </Link>
               
               <button className="w-full flex items-center space-x-4 p-4 bg-slate-700 rounded-xl text-white hover:bg-slate-600 transition-all">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

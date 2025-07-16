@@ -17,8 +17,8 @@ apiClient.interceptors.request.use(
         config.headers = {};
       }
       config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        console.log('API Request without token to:', config.url);
+    } else {
+      console.log('API Request without token to:', config.url);
     }
     return config;
   },
@@ -30,22 +30,22 @@ apiClient.interceptors.request.use(
 // Response interceptor to handle common errors
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('API Response successful:', response.config.url);
+    console.log('API Response successful:', response.config.url, response.status);
     return response;
   },
   (error) => {
-    console.log('API Response error:', error.response?.status, error.config?.url);
+    console.error('API Response error:', error.response?.status, error.config?.url, error.response?.data);
     
     if (error.response?.status === 401) {
-      console.log('401 Unauthorized - triggering session expired');
+      console.log('401 Unauthorized - clearing token and redirecting');
       // Handle unauthorized (e.g., redirect to login)
       localStorage.removeItem('token');
       localStorage.removeItem('username');
       
-      // THIS IS WHERE YOUR error=session_expired IS COMING FROM
-      window.location.href = '/login?error=session_expired';
-      // // Replace with:
-      // console.log('Would redirect to login with session_expired, but skipping for debug');
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?error=session_expired';
+      }
     }
     return Promise.reject(error);
   }
