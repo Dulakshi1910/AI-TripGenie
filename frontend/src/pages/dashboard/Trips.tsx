@@ -6,11 +6,14 @@ import type { Trip } from '../../services/tripApi';
 
 const Trips: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [allTrips, setAllTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     fetchTrips();
@@ -27,6 +30,7 @@ const Trips: React.FC = () => {
       };
       
       if (response.success) {
+        setAllTrips(response.data.trips);
         setTrips(response.data.trips);
         setTotalPages(response.pages);
       } else {
@@ -39,6 +43,42 @@ const Trips: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handleSearchTrips = async () => {
+    setIsSearching(true);
+    
+    try {
+      if (!searchTerm.trim()) {
+        setTrips(allTrips);
+      } else {
+        const filteredTrips = allTrips.filter(trip => 
+          trip.tripName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          trip.destinationCountry.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        setTrips(filteredTrips);
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setTrips(allTrips);
+  };
+
+  // Update trips when allTrips changes (e.g., after status filter)
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const filteredTrips = allTrips.filter(trip => 
+        trip.tripName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        trip.destinationCountry.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setTrips(filteredTrips);
+    } else {
+      setTrips(allTrips);
+    }
+  }, [allTrips, searchTerm]);
 
   const handleDeleteTrip = async (tripId: string) => {
     if (!confirm('Are you sure you want to delete this trip?')) return;
@@ -123,8 +163,60 @@ const Trips: React.FC = () => {
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            
+            <div className="flex items-center space-x-2 ml-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearchTrips()}
+                  placeholder="Search trips by name..."
+                  className="bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 w-64"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={handleSearchTrips}
+                disabled={isSearching}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {isSearching ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
+                <span>{isSearching ? 'Searching...' : 'Search'}</span>
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Search Results Info */}
+        {searchTerm && (
+          <div className="bg-blue-500/20 border border-blue-500 text-blue-400 px-4 py-3 rounded-xl">
+            <div className="flex items-center justify-between">
+              <span>Search results for: "{searchTerm}"</span>
+              <button
+                onClick={handleClearSearch}
+                className="text-sm underline hover:no-underline"
+              >
+                Clear Search
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -148,7 +240,9 @@ const Trips: React.FC = () => {
             </svg>
             <h3 className="text-xl font-medium text-white mb-2">No trips found</h3>
             <p className="text-gray-400 mb-4">
-              {statusFilter ? `No trips with status "${statusFilter}"` : 'You haven\'t created any trips yet'}
+              {searchTerm ? `No trips found matching "${searchTerm}"` : 
+               statusFilter ? `No trips with status "${statusFilter}"` : 
+               'You haven\'t created any trips yet'}
             </p>
             <Link 
               to="/dashboard/plan"

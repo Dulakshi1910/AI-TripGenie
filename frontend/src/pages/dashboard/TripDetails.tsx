@@ -91,6 +91,22 @@ const TripDetails: React.FC = () => {
     }
   };
 
+  const handleGenerateCheckList = async () => {
+    if (!trip || !id) return;
+    
+    try {
+      setLoading(true);
+      // TODO: Implement check list generation API call
+      // await tripApi.generateCheckList(id);
+      alert('Check list generation feature coming soon!');
+    } catch (err: any) {
+      console.error('Error generating check list:', err);
+      alert('Failed to generate check list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -201,11 +217,11 @@ const TripDetails: React.FC = () => {
 
             {trip.aiResponse && (
               <button
-                onClick={handleRegenerateTrip}
+                onClick={handleGenerateCheckList}
                 disabled={loading}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
               >
-                Regenerate Plan
+                Generate Check List
               </button>
             )}
           </div>
