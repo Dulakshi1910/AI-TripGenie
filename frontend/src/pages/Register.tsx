@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { validateEmail, validatePassword, validateUsername, validateConfirmPassword } from "../utils/validation";
 import { AuthLayout, FormField, AuthButton } from "../components";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
@@ -25,6 +26,7 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -81,8 +83,8 @@ const Register: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.data.user.username);
+        // Use AuthContext login function instead of direct localStorage
+        login(data.token);
         navigate("/dashboard");
       } else {
         setErrors({ general: data.message || "Registration failed" });

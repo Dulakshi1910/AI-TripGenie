@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { validateEmail } from "../utils/validation";
 import { AuthLayout, FormField, AuthButton } from "../components";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
@@ -21,6 +22,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { login } = useAuth();
 
   // Check for URL parameters (like session expired)
   useEffect(() => {
@@ -78,8 +80,8 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.data.user.username);
+        // Use AuthContext login function instead of direct localStorage
+        login(data.token);
         navigate("/dashboard");
       } else {
         setErrors({ general: data.message || "Login failed" });

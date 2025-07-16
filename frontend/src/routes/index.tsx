@@ -57,7 +57,7 @@ const router = createBrowserRouter([
             <PlanTrip />
           </ProtectedRoute>
         ),
-      },
+      }
     ],
   },
 ]);
