@@ -8,26 +8,31 @@ const Callback = () => {
   const { login } = useAuth();
 
   useEffect(() => {
-    // Extract token from URL query params
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
-    const error = params.get('error');
-    
-    if (error) {
-      console.error('OAuth Error detected:', error);
-      navigate('/login?error=auth_failed');
-      return;
-    }
+    const handleAuth = async () => {
+      const params = new URLSearchParams(location.search);
+      const token = params.get('token');
+      const error = params.get('error');
+      
+      if (error) {
+        console.error('OAuth Error detected:', error);
+        navigate('/login?error=auth_failed');
+        return;
+      }
 
-    if (token) {
-      // Save token and trigger login process
-      login(token);
-        
-      // Redirect to dashboard
-      setTimeout(() => navigate('/dashboard'), 5000); // optional delay
-    } else {
-      navigate('/login');
-    }
+      if (token) {
+        try {
+          await login(token);
+          navigate('/dashboard');
+        } catch (error) {
+          console.error('Login error:', error);
+          navigate('/login?error=auth_failed');
+        }
+      } else {
+        navigate('/login');
+      }
+    };
+
+    handleAuth();
   }, [location, navigate, login]);
 
   return (

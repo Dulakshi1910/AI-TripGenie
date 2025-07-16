@@ -160,16 +160,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className={`flex items-center mb-3 ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-sm font-semibold">
-                {user?.name?.charAt(0) || 'U'}
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </span>
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate">
-                  {user?.name || 'User'}
+                  {user?.name || 'Loading...'}
                 </p>
                 <p className="text-gray-400 text-xs truncate">
-                  {user?.email || 'user@example.com'}
+                  {user?.email || 'Loading...'}
                 </p>
               </div>
             )}

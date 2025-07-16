@@ -83,8 +83,7 @@ const Register: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Use AuthContext login function instead of direct localStorage
-        login(data.token);
+        await login(data.token);
         navigate("/dashboard");
       } else {
         setErrors({ general: data.message || "Registration failed" });
