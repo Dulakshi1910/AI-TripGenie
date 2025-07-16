@@ -56,8 +56,10 @@ const Trips: React.FC = () => {
     switch (status) {
       case 'completed':
         return 'bg-green-500/20 text-green-400';
-      case 'active':
+      case 'confirmed':
         return 'bg-blue-500/20 text-blue-400';
+      case 'ongoing':
+        return 'bg-purple-500/20 text-purple-400';
       case 'planning':
         return 'bg-yellow-500/20 text-yellow-400';
       case 'draft':
@@ -115,8 +117,9 @@ const Trips: React.FC = () => {
             >
               <option value="">All Status</option>
               <option value="draft">Draft</option>
-              <option value="active">Active</option>
               <option value="planning">Planning</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="ongoing">Ongoing</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>

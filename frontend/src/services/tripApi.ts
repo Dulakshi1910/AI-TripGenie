@@ -14,7 +14,7 @@ export interface TripData {
     accommodation?: string;
     transportation?: string;
     activities?: string[];
-    dietaryRestrictions?: string[];
+    dietaryRestrictions?: ('none' | 'vegetarian' | 'vegan' | 'halal' | 'kosher' | 'gluten-free' | 'lactose-free' | 'nut-free' | 'diabetic')[];
     travelStyle?: string;
   };
   personalNeeds?: {

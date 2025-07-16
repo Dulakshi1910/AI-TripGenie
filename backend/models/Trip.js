@@ -81,7 +81,7 @@ const tripSchema = new mongoose.Schema({
     }],
     dietaryRestrictions: [{
       type: String,
-      enum: ['vegetarian', 'vegan', 'halal', 'kosher', 'gluten-free', 'none']
+      enum: ['none', 'vegetarian', 'vegan', 'halal', 'kosher', 'gluten-free', 'lactose-free', 'nut-free', 'diabetic']
     }],
     travelStyle: {
       type: String,
@@ -151,8 +151,8 @@ const tripSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'active', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'],
-    default: 'planning'
+    enum: ['draft', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'],
+    default: 'draft'
   },
   isPublic: {
     type: Boolean,

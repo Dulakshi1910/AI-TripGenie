@@ -11,6 +11,7 @@ const TripDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -55,12 +56,49 @@ const TripDetails: React.FC = () => {
     }
   };
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!trip || !id) return;
+    
+    try {
+      setIsUpdatingStatus(true);
+      const response = await tripApi.updateTrip(id, { status: newStatus });
+      
+      if (response.success) {
+        setTrip(prev => prev ? { ...prev, status: newStatus } : null);
+      } else {
+        alert('Failed to update trip status');
+      }
+    } catch (err: any) {
+      console.error('Error updating trip status:', err);
+      alert('Failed to update trip status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleActivateTrip = async () => {
+    if (!trip || !id) return;
+    
+    try {
+      setLoading(true);
+      await tripApi.activateTrip(id);
+      await fetchTripDetails();
+    } catch (err: any) {
+      console.error('Error activating trip:', err);
+      alert('Failed to activate trip');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
         return 'bg-green-500/20 text-green-400';
-      case 'active':
+      case 'confirmed':
         return 'bg-blue-500/20 text-blue-400';
+      case 'ongoing':
+        return 'bg-purple-500/20 text-purple-400';
       case 'planning':
         return 'bg-yellow-500/20 text-yellow-400';
       case 'draft':
@@ -137,9 +175,30 @@ const TripDetails: React.FC = () => {
             <h1 className="text-3xl font-bold text-white">{trip.tripName}</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(trip.status || 'draft')}`}>
-              {trip.status || 'draft'}
-            </span>
+            {/* Status Update Dropdown */}
+            <div className="relative">
+              <select
+                value={trip.status || 'draft'}
+                onChange={(e) => handleStatusUpdate(e.target.value)}
+                disabled={isUpdatingStatus}
+                className={`px-3 py-1 rounded-full text-sm font-medium border-2 transition-all ${
+                  getStatusColor(trip.status || 'draft')
+                } ${isUpdatingStatus ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+              >
+                <option value="draft">Draft</option>
+                <option value="planning">Planning</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              {isUpdatingStatus && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                </div>
+              )}
+            </div>
+
             {trip.aiResponse && (
               <button
                 onClick={handleRegenerateTrip}
@@ -174,16 +233,80 @@ const TripDetails: React.FC = () => {
           </div>
         </div>
 
+        {/* Status Actions */}
+        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-4 border border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="text-white">
+              <span className="text-sm text-gray-400">Current Status: </span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(trip.status || 'draft')}`}>
+                {trip.status || 'draft'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-3">
+              {trip.status === 'draft' && (
+                <button
+                  onClick={handleActivateTrip}
+                  disabled={loading}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 text-sm"
+                >
+                  {loading ? 'Activating Plan...' : 'Activate AI Plan'}
+                </button>
+              )}
+              
+              {trip.status === 'planning' && (
+                <button
+                  onClick={() => handleStatusUpdate('confirmed')}
+                  disabled={isUpdatingStatus}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 text-sm"
+                >
+                  Confirm Trip
+                </button>
+              )}
+              
+              {trip.status === 'confirmed' && (
+                <button
+                  onClick={() => handleStatusUpdate('ongoing')}
+                  disabled={isUpdatingStatus}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50 text-sm"
+                >
+                  Start Trip
+                </button>
+              )}
+              
+              {trip.status === 'ongoing' && (
+                <button
+                  onClick={() => handleStatusUpdate('completed')}
+                  disabled={isUpdatingStatus}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 text-sm"
+                >
+                  Complete Trip
+                </button>
+              )}
+              
+              {trip.status !== 'cancelled' && trip.status !== 'completed' && (
+                <button
+                  onClick={() => handleStatusUpdate('cancelled')}
+                  disabled={isUpdatingStatus}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all disabled:opacity-50 text-sm"
+                >
+                  Cancel Trip
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* No AI Response */}
         {!trip.aiResponse && (
           <div className="bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-6 py-4 rounded-xl text-center">
             <h3 className="font-semibold mb-2">No AI plan generated yet</h3>
             <p className="text-sm mb-4">This trip is in draft mode. Generate an AI plan to see detailed recommendations.</p>
             <button
-              onClick={() => tripApi.activateTrip(trip._id)}
-              className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-all"
+              onClick={handleActivateTrip}
+              disabled={loading}
+              className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-all disabled:opacity-50"
             >
-              Generate AI Plan
+              {loading ? 'Generating...' : 'Generate AI Plan'}
             </button>
           </div>
         )}
@@ -193,8 +316,8 @@ const TripDetails: React.FC = () => {
           <>
             {/* Tab Navigation */}
             <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden">
-              <div className="flex space-x-0 border-b border-slate-700">
-                {[
+              <div className="flex space-x-0 border-b border-slate-700 overflow-x-auto">
+                { [
                   { id: 'overview', label: 'Overview', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
                   { id: 'itinerary', label: 'Itinerary', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
                   { id: 'flights', label: 'Flights', icon: 'M12 19l9 2-9-18-9 18 9-2zm0 0v-8' },
@@ -204,7 +327,7 @@ const TripDetails: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 px-6 py-4 font-medium transition-all ${
+                    className={`flex items-center space-x-2 px-6 py-4 font-medium transition-all whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'bg-purple-600 text-white border-b-2 border-purple-400'
                         : 'text-gray-400 hover:text-white hover:bg-slate-700/50'
@@ -230,7 +353,7 @@ const TripDetails: React.FC = () => {
                           <div>
                             <h4 className="font-medium text-white mb-2">Places to Visit</h4>
                             <ul className="space-y-1">
-                              {trip.aiResponse.recommendations.placesToVisit.map((place, index) => (
+                              {trip.aiResponse.recommendations?.placesToVisit?.map((place, index) => (
                                 <li key={index} className="text-gray-300 text-sm">• {place}</li>
                               ))}
                             </ul>
@@ -238,7 +361,7 @@ const TripDetails: React.FC = () => {
                           <div>
                             <h4 className="font-medium text-white mb-2">Restaurants</h4>
                             <ul className="space-y-1">
-                              {trip.aiResponse.recommendations.restaurants.map((restaurant, index) => (
+                              {trip.aiResponse.recommendations?.restaurants?.map((restaurant, index) => (
                                 <li key={index} className="text-gray-300 text-sm">• {restaurant}</li>
                               ))}
                             </ul>
@@ -251,7 +374,7 @@ const TripDetails: React.FC = () => {
                           <div>
                             <h4 className="font-medium text-white mb-2">Local Tips</h4>
                             <ul className="space-y-1">
-                              {trip.aiResponse.recommendations.localTips.map((tip, index) => (
+                              {trip.aiResponse.recommendations?.localTips?.map((tip, index) => (
                                 <li key={index} className="text-gray-300 text-sm">• {tip}</li>
                               ))}
                             </ul>
@@ -259,7 +382,7 @@ const TripDetails: React.FC = () => {
                           <div>
                             <h4 className="font-medium text-white mb-2">Packing List</h4>
                             <ul className="space-y-1">
-                              {trip.aiResponse.recommendations.packingList.map((item, index) => (
+                              {trip.aiResponse.recommendations?.packingList?.map((item, index) => (
                                 <li key={index} className="text-gray-300 text-sm">• {item}</li>
                               ))}
                             </ul>
@@ -273,13 +396,13 @@ const TripDetails: React.FC = () => {
                 {/* Itinerary Tab */}
                 {activeTab === 'itinerary' && (
                   <div className="space-y-6">
-                    {trip.aiResponse.itinerary.map((day, index) => (
+                    {trip.aiResponse.itinerary?.map((day, index) => (
                       <div key={index} className="bg-slate-700/50 rounded-xl p-6">
                         <h3 className="text-lg font-semibold text-white mb-4">
                           Day {day.day} - {formatDate(day.date)}
                         </h3>
                         <div className="space-y-4">
-                          {day.activities.map((activity, actIndex) => (
+                          {day.activities?.map((activity, actIndex) => (
                             <div key={actIndex} className="flex items-start space-x-4">
                               <div className="bg-purple-600 text-white text-sm px-3 py-1 rounded-full font-medium">
                                 {activity.time}
@@ -305,7 +428,7 @@ const TripDetails: React.FC = () => {
                 {/* Flights Tab */}
                 {activeTab === 'flights' && (
                   <div className="space-y-6">
-                    {trip.aiResponse.flightOptions.map((flight, index) => (
+                    {trip.aiResponse.flightOptions?.map((flight, index) => (
                       <div key={index} className="bg-slate-700/50 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-semibold text-white">{flight.airline}</h3>
@@ -337,7 +460,7 @@ const TripDetails: React.FC = () => {
                 {/* Hotels Tab */}
                 {activeTab === 'hotels' && (
                   <div className="space-y-6">
-                    {trip.aiResponse.hotelOptions.map((hotel, index) => (
+                    {trip.aiResponse.hotelOptions?.map((hotel, index) => (
                       <div key={index} className="bg-slate-700/50 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-semibold text-white">{hotel.name}</h3>
@@ -350,7 +473,7 @@ const TripDetails: React.FC = () => {
                         <div>
                           <h4 className="font-medium text-white mb-2">Amenities</h4>
                           <div className="flex flex-wrap gap-2">
-                            {hotel.amenities.map((amenity, amenityIndex) => (
+                            {hotel.amenities?.map((amenity, amenityIndex) => (
                               <span key={amenityIndex} className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full text-xs">
                                 {amenity}
                               </span>
@@ -368,7 +491,7 @@ const TripDetails: React.FC = () => {
                     <div className="bg-slate-700/50 rounded-xl p-6">
                       <h3 className="text-lg font-semibold text-white mb-6">Budget Breakdown</h3>
                       <div className="space-y-4">
-                        {Object.entries(trip.aiResponse.budgetBreakdown).map(([category, amount]) => (
+                        {trip.aiResponse.budgetBreakdown && Object.entries(trip.aiResponse.budgetBreakdown).map(([category, amount]) => (
                           <div key={category} className="flex items-center justify-between">
                             <span className="text-gray-300 capitalize">{category.replace(/([A-Z])/g, ' $1').trim()}</span>
                             <span className="text-white font-semibold">{amount} {trip.currency}</span>

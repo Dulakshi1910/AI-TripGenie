@@ -31,11 +31,35 @@ const createTrip = async (req, res) => {
     }
 
     // Validate status
-    if (!['draft', 'active', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'].includes(status)) {
+    if (!['draft', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status. Must be one of: draft, active, planning, confirmed, ongoing, completed, cancelled'
+        message: 'Invalid status. Must be one of: draft, planning, confirmed, ongoing, completed, cancelled'
       });
+    }
+
+    // Validate dietary restrictions if provided
+    if (preferences && preferences.dietaryRestrictions) {
+      const validRestrictions = ['none', 'vegetarian', 'vegan', 'halal', 'kosher', 'gluten-free', 'lactose-free', 'nut-free', 'diabetic'];
+      const invalidRestrictions = preferences.dietaryRestrictions.filter(r => !validRestrictions.includes(r));
+      if (invalidRestrictions.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid dietary restrictions: ${invalidRestrictions.join(', ')}. Valid options are: ${validRestrictions.join(', ')}`
+        });
+      }
+    }
+
+    // Validate activities if provided
+    if (preferences && preferences.activities) {
+      const validActivities = ['sightseeing', 'adventure', 'cultural', 'food', 'shopping', 'nightlife', 'relaxation', 'nature'];
+      const invalidActivities = preferences.activities.filter(a => !validActivities.includes(a));
+      if (invalidActivities.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid activities: ${invalidActivities.join(', ')}. Valid options are: ${validActivities.join(', ')}`
+        });
+      }
     }
 
     // Create trip object
@@ -115,7 +139,7 @@ const getUserTrips = async (req, res) => {
 
     // Build filter object
     const filter = { user: req.user.id };
-    if (status && ['draft', 'active', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'].includes(status)) {
+    if (status && ['draft', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'].includes(status)) {
       filter.status = status;
     }
 
@@ -346,8 +370,8 @@ const activateTrip = async (req, res) => {
       trip.aiResponse = aiResponse;
     }
 
-    // Update status to active
-    trip.status = 'active';
+    // Update status to planning instead of active
+    trip.status = 'planning';
     await trip.save();
 
     res.json({

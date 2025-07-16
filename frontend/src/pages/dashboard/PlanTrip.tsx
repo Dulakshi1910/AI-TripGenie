@@ -103,7 +103,7 @@ const PlanTrip: React.FC = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleSubmit = async (status: 'draft' | 'active') => {
+  const handleSubmit = async (status: 'draft' | 'planning') => {
     if (!validateStep(1)) return;
 
     setIsLoading(true);
@@ -323,23 +323,90 @@ const PlanTrip: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-white">Activities (comma-separated)</label>
-                <input
-                  type="text"
-                  placeholder="sightseeing, adventure, cultural, food"
-                  onChange={(e) => handleArrayChange('preferences', 'activities', e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                />
+                <label className="text-sm font-semibold text-white">Activities</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {[
+                    { value: 'sightseeing', label: 'Sightseeing' },
+                    { value: 'adventure', label: 'Adventure' },
+                    { value: 'cultural', label: 'Cultural' },
+                    { value: 'food', label: 'Food & Dining' },
+                    { value: 'shopping', label: 'Shopping' },
+                    { value: 'nightlife', label: 'Nightlife' },
+                    { value: 'relaxation', label: 'Relaxation' },
+                    { value: 'nature', label: 'Nature' }
+                  ].map((activity) => (
+                    <label key={activity.value} className="flex items-center space-x-2 text-white text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.preferences?.activities?.includes(activity.value) || false}
+                        onChange={(e) => {
+                          const currentActivities = formData.preferences?.activities || [];
+                          let newActivities;
+                          
+                          if (e.target.checked) {
+                            newActivities = [...currentActivities, activity.value];
+                          } else {
+                            newActivities = currentActivities.filter(a => a !== activity.value);
+                          }
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            preferences: {
+                              ...prev.preferences,
+                              activities: newActivities
+                            }
+                          }));
+                        }}
+                        className="w-4 h-4 text-purple-600 bg-slate-700 border-slate-600 rounded focus:ring-purple-500 focus:ring-2"
+                      />
+                      <span>{activity.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-white">Dietary Restrictions (comma-separated)</label>
-                <input
-                  type="text"
-                  placeholder="vegetarian, vegan, halal, gluten-free"
-                  onChange={(e) => handleArrayChange('preferences', 'dietaryRestrictions', e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                />
+                <label className="text-sm font-semibold text-white">Dietary Restrictions</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {[
+                    { value: 'none', label: 'None' },
+                    { value: 'vegetarian', label: 'Vegetarian' },
+                    { value: 'vegan', label: 'Vegan' },
+                    { value: 'halal', label: 'Halal' },
+                    { value: 'kosher', label: 'Kosher' },
+                    { value: 'gluten-free', label: 'Gluten-Free' },
+                    { value: 'lactose-free', label: 'Lactose-Free' },
+                    { value: 'nut-free', label: 'Nut-Free' },
+                    { value: 'diabetic', label: 'Diabetic' }
+                  ].map((restriction) => (
+                    <label key={restriction.value} className="flex items-center space-x-2 text-white text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.preferences?.dietaryRestrictions?.includes(restriction.value) || false}
+                        onChange={(e) => {
+                          const currentRestrictions = formData.preferences?.dietaryRestrictions || [];
+                          let newRestrictions;
+                          
+                          if (e.target.checked) {
+                            newRestrictions = [...currentRestrictions, restriction.value];
+                          } else {
+                            newRestrictions = currentRestrictions.filter(r => r !== restriction.value);
+                          }
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            preferences: {
+                              ...prev.preferences,
+                              dietaryRestrictions: newRestrictions
+                            }
+                          }));
+                        }}
+                        className="w-4 h-4 text-purple-600 bg-slate-700 border-slate-600 rounded focus:ring-purple-500 focus:ring-2"
+                      />
+                      <span>{restriction.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -454,7 +521,7 @@ const PlanTrip: React.FC = () => {
                   </AuthButton>
                   
                   <AuthButton
-                    onClick={() => handleSubmit('active')}
+                    onClick={() => handleSubmit('planning')}
                     disabled={isLoading}
                     loading={isLoading}
                     variant="primary"
