@@ -44,7 +44,7 @@ const PlanTrip: React.FC = () => {
       setFormData(prev => ({
         ...prev,
         [section]: {
-          ...prev[section as keyof TripData],
+          ...(prev[section as keyof TripData] as Record<string, unknown>),
           [field]: value
         }
       }));
@@ -65,7 +65,7 @@ const PlanTrip: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof TripData],
+        ...(prev[section as keyof TripData] as Record<string, unknown>),
         [field]: value.split(',').map(item => item.trim()).filter(item => item)
       }
     }));
@@ -111,7 +111,7 @@ const PlanTrip: React.FC = () => {
 
     try {
       const tripData = { ...formData, status };
-      const response = await tripApi.createTrip(tripData);
+      const response = await tripApi.createTrip(tripData) as { success: boolean };
       
       if (response.success) {
         // Show success message or redirect based on status
@@ -382,13 +382,13 @@ const PlanTrip: React.FC = () => {
                     <label key={restriction.value} className="flex items-center space-x-2 text-white text-sm">
                       <input
                         type="checkbox"
-                        checked={formData.preferences?.dietaryRestrictions?.includes(restriction.value) || false}
+                        checked={formData.preferences?.dietaryRestrictions?.includes(restriction.value as "none" | "vegetarian" | "vegan" | "halal" | "kosher" | "gluten-free" | "lactose-free" | "nut-free" | "diabetic") || false}
                         onChange={(e) => {
                           const currentRestrictions = formData.preferences?.dietaryRestrictions || [];
                           let newRestrictions;
                           
                           if (e.target.checked) {
-                            newRestrictions = [...currentRestrictions, restriction.value];
+                            newRestrictions = [...currentRestrictions, restriction.value as "none" | "vegetarian" | "vegan" | "halal" | "kosher" | "gluten-free" | "lactose-free" | "nut-free" | "diabetic"];
                           } else {
                             newRestrictions = currentRestrictions.filter(r => r !== restriction.value);
                           }
