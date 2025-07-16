@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Home, Dashboard, Login, Register } from '../pages';
 import { Callback } from '../components';
+import Trips from '../pages/dashboard/Trips';
 import ProtectedRoute from './ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -28,6 +29,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/dashboard/trips',
+        element: (
+          <ProtectedRoute>
+            <Trips />
           </ProtectedRoute>
         ),
       },

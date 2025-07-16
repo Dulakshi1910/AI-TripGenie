@@ -5,3 +5,6 @@ export { default as ThemeToggle } from './ui/ThemeToggle';
 export { default as AuthLayout } from './layout/AuthLayout';
 export { default as FormField } from './ui/FormField';
 export { default as AuthButton } from './ui/AuthButton';
+export { default as Sidebar } from './layout/Sidebar';
+export { default as DashboardLayout } from './layout/DashboardLayout';
+export { default as DashboardCard } from './dashboard/DashboardCard';

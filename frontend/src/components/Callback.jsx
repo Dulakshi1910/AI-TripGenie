@@ -6,7 +6,6 @@ function Callback() {
   const location = useLocation();
 
   useEffect(() => {
-    // Extract token from URL query params
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
     const error = params.get('error');
@@ -18,13 +17,10 @@ function Callback() {
     }
 
     if (token) {
-      // Save token to localStorage or your auth state management
       localStorage.setItem('token', token);
       
-      // Fetch user info or redirect to dashboard
       navigate('/dashboard');
     } else {
-      // No token found, redirect to login
       navigate('/login');
     }
   }, [location, navigate]);
