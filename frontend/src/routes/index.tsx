@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { Home, Dashboard, Login } from '../pages';
+import { Home, Dashboard, Login, Register } from '../pages';
 import { Callback } from '../components';
 import ProtectedRoute from './ProtectedRoute';
 
@@ -14,6 +14,10 @@ const router = createBrowserRouter([
       {
         path: '/login',
         element: <Login />,
+      },
+      {
+        path: '/register',
+        element: <Register />,
       },
       {
         path: '/auth/callback',
