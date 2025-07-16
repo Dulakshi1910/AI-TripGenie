@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { FormField, AuthButton } from '../../components';
-import { tripApi, TripData } from '../../services/tripApi';
+import { tripApi } from '../../services/tripApi';
+import type { TripData } from '../../services/tripApi';
 
 const PlanTrip: React.FC = () => {
   const navigate = useNavigate();

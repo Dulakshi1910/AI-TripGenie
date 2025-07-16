@@ -1,9 +1,10 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Home, Dashboard, Login, Register } from '../pages';
 import { Callback } from '../components';
-import Trips from '../pages/dashboard/Trips';
-import PlanTrip from '../pages/dashboard/PlanTrip';
 import ProtectedRoute from './ProtectedRoute';
+import Trips from '../pages/dashboard/Trips';
+import TripDetails from '../pages/dashboard/TripDetails';
+import PlanTrip from '../pages/dashboard/PlanTrip';
 
 const router = createBrowserRouter([
   {
@@ -38,6 +39,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Trips />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/dashboard/trips/:id',
+        element: (
+          <ProtectedRoute>
+            <TripDetails />
           </ProtectedRoute>
         ),
       },

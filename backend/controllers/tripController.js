@@ -31,10 +31,10 @@ const createTrip = async (req, res) => {
     }
 
     // Validate status
-    if (!['draft', 'active', 'planning'].includes(status)) {
+    if (!['draft', 'active', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status. Must be draft, active, or planning'
+        message: 'Invalid status. Must be one of: draft, active, planning, confirmed, ongoing, completed, cancelled'
       });
     }
 
@@ -115,7 +115,7 @@ const getUserTrips = async (req, res) => {
 
     // Build filter object
     const filter = { user: req.user.id };
-    if (status && ['draft', 'active', 'planning', 'completed', 'cancelled'].includes(status)) {
+    if (status && ['draft', 'active', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'].includes(status)) {
       filter.status = status;
     }
 

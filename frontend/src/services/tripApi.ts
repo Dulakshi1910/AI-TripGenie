@@ -22,7 +22,7 @@ export interface TripData {
     medicalNeeds?: string;
     specialRequests?: string;
   };
-  status?: 'draft' | 'active' | 'planning';
+  status?: 'draft' | 'planning' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled';
 }
 
 export interface Trip extends TripData {

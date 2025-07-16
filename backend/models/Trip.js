@@ -151,7 +151,7 @@ const tripSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['planning', 'confirmed', 'ongoing', 'completed', 'cancelled'],
+    enum: ['draft', 'active', 'planning', 'confirmed', 'ongoing', 'completed', 'cancelled'],
     default: 'planning'
   },
   isPublic: {
