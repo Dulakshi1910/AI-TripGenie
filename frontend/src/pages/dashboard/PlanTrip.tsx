@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { FormField, AuthButton } from '../../components';
-import { tripApi } from '../../services/tripApi';
+import { tripApi, CURRENCY_OPTIONS } from '../../services/tripApi';
 import type { TripData } from '../../services/tripApi';
 
 const PlanTrip: React.FC = () => {
@@ -241,11 +241,11 @@ const PlanTrip: React.FC = () => {
                     onChange={handleChange}
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                   >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="JPY">JPY</option>
-                    <option value="CAD">CAD</option>
+                    {CURRENCY_OPTIONS.map((currency) => (
+                      <option key={currency.code} value={currency.code}>
+                        {currency.code} - {currency.name} ({currency.symbol})
+                      </option>
+                    ))}
                   </select>
                 </div>
 

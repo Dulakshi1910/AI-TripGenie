@@ -36,7 +36,20 @@ const tripSchema = new mongoose.Schema({
     type: String,
     required: true,
     default: 'USD',
-    enum: ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR']
+    enum: [
+      'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR',
+      'KRW', 'BRL', 'MXN', 'RUB', 'ZAR', 'SGD', 'HKD', 'NZD', 'SEK',
+      'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK', 'TRY',
+      'ILS', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'EGP', 'MAD',
+      'NGN', 'GHS', 'KES', 'UGX', 'TZS', 'ZMW', 'BWP', 'MUR', 'SCR',
+      'THB', 'MYR', 'IDR', 'PHP', 'VND', 'LAK', 'KHR', 'MMK', 'BDT',
+      'PKR', 'LKR', 'NPR', 'BTN', 'MVR', 'AFN', 'IRR', 'IQD', 'SYP',
+      'LBP', 'JOD', 'YER', 'GEL', 'AMD', 'AZN', 'KZT', 'KGS', 'TJS',
+      'UZS', 'TMT', 'MNT', 'MDL', 'UAH', 'BYN', 'RSD', 'MKD', 'ALL',
+      'BAM', 'EUR', 'ISK', 'FJD', 'TOP', 'WST', 'VUV', 'SBD', 'PGK',
+      'NCX', 'XPF', 'CLP', 'PEN', 'COP', 'VES', 'GYD', 'SRD', 'UYU',
+      'PYG', 'BOB', 'ARS', 'FKP', 'GGP', 'JEP', 'IMP', 'SHP', 'GIP'
+    ]
   },
   startDate: {
     type: Date,
