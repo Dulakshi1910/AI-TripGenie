@@ -1,10 +1,11 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const connectDB = require('./config/db');
 const { scheduleTokenCleanup } = require('./utils/tokenCleanup');
 
 // Check for required environment variables
-const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'GOOGLE_API_KEY'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -17,12 +18,15 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use("/",(req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  next();
-});
+app.use(express.urlencoded({ extended: true }));
+
+// CORS middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+}));
 
 // Try to initialize Passport if available
 try {
@@ -47,6 +51,34 @@ scheduleTokenCleanup();
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/trips', require('./routes/trips'));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'production' ? {} : err.message
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
 
 // Define port
 const PORT = process.env.PORT || 3001;

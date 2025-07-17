@@ -31,16 +31,18 @@ router.put('/change-password', auth, changePassword);
 router.post('/logout', auth, logoutUser);
 
 // Try to add Google OAuth routes if passport is available
+try {
+  const passport = require('passport');
 
-const passport = require('passport');
+  // Google OAuth routes
+  router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-// Google OAuth routes
-router.get('/google',passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-
-router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
-  googleAuthCallback
-);
+  router.get('/google/callback',
+    passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+    googleAuthCallback
+  );
+} catch (error) {
+  console.warn('Google OAuth routes not available - passport not installed');
+}
 
 module.exports = router;

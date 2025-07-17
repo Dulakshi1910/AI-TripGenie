@@ -39,11 +39,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
 
   const fetchUserData = async () => {
-    if (user) return;
     try {
       setIsLoading(true);
       const response = await authApi.getCurrentUser();
-      setUser((response as { data: { user: User } }).data.user);
+      const userData = (response as { data: { user: User } }).data.user;
+      console.log('Fetched user data:', userData);
+      setUser({
+        id: userData.id,
+        name: userData.username || userData.name,
+        email: userData.email
+      });
     } catch (error) {
       console.error('Failed to fetch user data', error);
       logout();
@@ -53,9 +58,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
 
-  const login = (token: string) => {
+  const login = async (token: string) => {
     localStorage.setItem('token', token);
-    fetchUserData();
+    await fetchUserData();
   };
 
   const logout = async () => {
