@@ -120,6 +120,27 @@ export const CURRENCY_OPTIONS = [
   { code: 'AZN', name: 'Azerbaijani Manat', symbol: '₼' }
 ];
 
+// Define the structure of a single checklist item for the frontend
+export interface ChecklistItem {
+  _id?: string; // MongoDB _id for individual items, optional as it's not present on new items
+  item: string;
+  checked: boolean;
+  type: 'packing' | 'place' | 'restaurant' | 'hotel' | 'activity' | 'custom';
+  bookingAction?: string; 
+  time?: string; 
+  location?: string; 
+  description?: string; 
+  day?: number; 
+  date?: string;
+}
+
+// Define the full user checklist structure
+export interface UserChecklist {
+  items: ChecklistItem[];
+  generatedFromAIResponseId?: string; 
+  lastModifiedAt: string; 
+}
+
 export interface Trip extends TripData {
   _id: string;
   user: string;
@@ -129,6 +150,7 @@ export interface Trip extends TripData {
     itinerary: any[];
     budgetBreakdown: any;
     recommendations: any;
+    userChecklist?: UserChecklist; // Checklist directly embedded in AI response (though `getUserChecklist` fetches it separately too)
   };
   createdAt: string;
   updatedAt: string;
@@ -178,5 +200,31 @@ export const tripApi = {
   activateTrip: async (tripId: string) => {
     const response = await apiClient.post(`/trips/${tripId}/activate`);
     return response.data;
-  }
+  },
+
+  // Checklist management endpoints
+  generateUserChecklist: async (tripId: string) => {
+    const response = await apiClient.post(`/trips/${tripId}/checklist/generate`);
+    return response.data;
+  },
+
+  getUserChecklist: async (tripId: string) => {
+    const response = await apiClient.get(`/trips/${tripId}/checklist`);
+    return response.data;
+  },
+
+  updateChecklistItem: async (tripId: string, itemId: string, updateData: Partial<ChecklistItem>) => {
+    const response = await apiClient.put(`/trips/${tripId}/checklist/items/${itemId}`, updateData);
+    return response.data;
+  },
+
+  addChecklistItem: async (tripId: string, newItemData: Omit<ChecklistItem, '_id'>) => {
+    const response = await apiClient.post(`/trips/${tripId}/checklist/items`, newItemData);
+    return response.data;
+  },
+
+  deleteChecklistItem: async (tripId: string, itemId: string) => {
+    const response = await apiClient.delete(`/trips/${tripId}/checklist/items/${itemId}`);
+    return response.data;
+  },
 };

@@ -5,6 +5,8 @@ import ProtectedRoute from './ProtectedRoute';
 import Trips from '../pages/dashboard/Trips';
 import TripDetails from '../pages/dashboard/TripDetails';
 import PlanTrip from '../pages/dashboard/PlanTrip';
+import ChecklistPage from '../pages/dashboard/ChecklistPage'; 
+import ChecklistP from '../pages/dashboard/ChecklistP';
 
 const router = createBrowserRouter([
   {
@@ -47,6 +49,22 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <TripDetails />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/dashboard/trips/:id/checklist',
+        element: (
+          <ProtectedRoute>
+            <ChecklistPage />
+          </ProtectedRoute>
+        ),
+      },
+          {
+        path: '/dashboard/ChecklistP',
+        element: (
+          <ProtectedRoute>
+            <ChecklistP />
           </ProtectedRoute>
         ),
       },

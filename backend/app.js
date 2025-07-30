@@ -52,6 +52,7 @@ scheduleTokenCleanup();
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/trips', require('./routes/trips'));
+app.use('/api/trips',require('./routes/checklist'))
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

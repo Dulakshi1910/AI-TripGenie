@@ -12,6 +12,8 @@ const TripDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isGeneratingChecklist, setIsGeneratingChecklist] = useState(false); 
+  const [userChecklistExists, setUserChecklistExists] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -56,21 +58,21 @@ const TripDetails: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = async (newStatus: string) => {
-    if (!trip || !id) return;
-    
+   const handleStatusUpdate = async (newStatus: Trip['status']) => {
+    if (!trip || !id || isUpdatingStatus) return; // Prevent multiple clicks
+
+    setIsUpdatingStatus(true);
     try {
-      setIsUpdatingStatus(true);
-      const response = await tripApi.updateTrip(id, { status: newStatus });
-      
+      const response = await tripApi.updateTrip(id, { status: newStatus }) as { success: boolean; data: Trip }; // Assert response type
+
       if (response.success) {
         setTrip(prev => prev ? { ...prev, status: newStatus } : null);
       } else {
-        alert('Failed to update trip status');
+        alert('Failed to update trip status: ' + (response.data as any)?.message || 'Unknown error.');
       }
     } catch (err: any) {
       console.error('Error updating trip status:', err);
-      alert('Failed to update trip status');
+      alert(err.response?.data?.message || 'Failed to update trip status');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -92,18 +94,22 @@ const TripDetails: React.FC = () => {
   };
 
   const handleGenerateCheckList = async () => {
-    if (!trip || !id) return;
-    
+    if (!trip || !id || isGeneratingChecklist) return;
+
+    setIsGeneratingChecklist(true);
     try {
-      setLoading(true);
-      // TODO: Implement check list generation API call
-      // await tripApi.generateCheckList(id);
-      alert('Check list generation feature coming soon!');
-    } catch (err: any) {
-      console.error('Error generating check list:', err);
-      alert('Failed to generate check list');
+      if (!userChecklistExists) {
+        // Only generate if it doesn't exist
+        await tripApi.generateUserChecklist(id);
+        setUserChecklistExists(true);
+        alert('Checklist generated successfully!');
+      }
+      navigate(`/dashboard/trips/${id}/checklist`);
+    } catch (error: any) {
+      console.error('Error generating or navigating to checklist:', error);
+      alert(error.response?.data?.message || 'Failed to generate or access checklist.');
     } finally {
-      setLoading(false);
+      setIsGeneratingChecklist(false);
     }
   };
 
@@ -127,6 +133,7 @@ const TripDetails: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A'; 
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -135,11 +142,18 @@ const TripDetails: React.FC = () => {
   };
 
   const formatTime = (timeString: string) => {
-    return new Date(`1970-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    if (!timeString) return 'N/A'; // Handle cases where timeString might be empty
+    try {
+      // Create a dummy date to parse the time string correctly
+      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      console.error("Invalid time string:", timeString, e);
+      return timeString; 
+    }
   };
 
   if (loading) {
@@ -195,7 +209,7 @@ const TripDetails: React.FC = () => {
             <div className="relative">
               <select
                 value={trip.status || 'draft'}
-                onChange={(e) => handleStatusUpdate(e.target.value)}
+                onChange={(e) => handleStatusUpdate(e.target.value as Trip['status'])} 
                 disabled={isUpdatingStatus}
                 className={`px-3 py-1 rounded-full text-sm font-medium border-2 transition-all ${
                   getStatusColor(trip.status || 'draft')
@@ -215,13 +229,14 @@ const TripDetails: React.FC = () => {
               )}
             </div>
 
-            {trip.aiResponse && (
+            {/* View/Manage Checklist Button */}
+            {trip.aiResponse && ( // Only show if AI response exists
               <button
                 onClick={handleGenerateCheckList}
-                disabled={loading}
+                disabled={isGeneratingChecklist || loading}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
               >
-                Generate Check List
+                {isGeneratingChecklist ? 'Preparing Checklist...' : (userChecklistExists ? 'View Checklist' : 'Generate Checklist')}
               </button>
             )}
           </div>
@@ -262,7 +277,7 @@ const TripDetails: React.FC = () => {
               {trip.status === 'draft' && (
                 <button
                   onClick={handleActivateTrip}
-                  disabled={loading}
+                  disabled={loading} // Disable if overall loading
                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 text-sm"
                 >
                   {loading ? 'Activating Plan...' : 'Activate AI Plan'}
@@ -387,22 +402,33 @@ const TripDetails: React.FC = () => {
                       <div>
                         <h3 className="text-lg font-semibold text-white mb-4">Travel Tips</h3>
                         <div className="space-y-4">
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Local Tips</h4>
-                            <ul className="space-y-1">
-                              {trip.aiResponse.recommendations?.localTips?.map((tip, index) => (
-                                <li key={index} className="text-gray-300 text-sm">• {tip}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Packing List</h4>
-                            <ul className="space-y-1">
-                              {trip.aiResponse.recommendations?.packingList?.map((item, index) => (
-                                <li key={index} className="text-gray-300 text-sm">• {item}</li>
-                              ))}
-                            </ul>
-                          </div>
+                          {trip.aiResponse.recommendations?.localTips?.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-white mb-2">Local Tips</h4>
+                              <ul className="space-y-1">
+                                {trip.aiResponse.recommendations.localTips.map((tip, index) => (
+                                  <li key={index} className="text-gray-300 text-sm">• {tip}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {!trip.aiResponse.recommendations?.localTips?.length && (
+                            <p className="text-gray-500 text-sm">No local tips available.</p>
+                          )}
+
+                          {trip.aiResponse.recommendations?.packingList?.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-white mb-2">Packing List</h4>
+                              <ul className="space-y-1">
+                                {trip.aiResponse.recommendations.packingList.map((item, index) => (
+                                  <li key={index} className="text-gray-300 text-sm">• {item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {!trip.aiResponse.recommendations?.packingList?.length && (
+                            <p className="text-gray-500 text-sm">No packing list recommendations available.</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -412,92 +438,122 @@ const TripDetails: React.FC = () => {
                 {/* Itinerary Tab */}
                 {activeTab === 'itinerary' && (
                   <div className="space-y-6">
-                    {trip.aiResponse.itinerary?.map((day, index) => (
-                      <div key={index} className="bg-slate-700/50 rounded-xl p-6">
-                        <h3 className="text-lg font-semibold text-white mb-4">
-                          Day {day.day} - {formatDate(day.date)}
-                        </h3>
-                        <div className="space-y-4">
-                          {day.activities?.map((activity, actIndex) => (
-                            <div key={actIndex} className="flex items-start space-x-4">
-                              <div className="bg-purple-600 text-white text-sm px-3 py-1 rounded-full font-medium">
-                                {activity.time}
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-medium text-white">{activity.activity}</h4>
-                                <p className="text-gray-400 text-sm">{activity.location}</p>
-                                <p className="text-gray-300 text-sm mt-1">{activity.description}</p>
-                                {activity.estimatedCost > 0 && (
-                                  <p className="text-green-400 text-sm mt-1">
-                                    Est. Cost: {activity.estimatedCost} {trip.currency}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                    {trip.aiResponse.itinerary?.length > 0 ? (
+                      trip.aiResponse.itinerary.map((day, index) => (
+                        <div key={index} className="bg-slate-700/50 rounded-xl p-6">
+                          <h3 className="text-lg font-semibold text-white mb-4">
+                            Day {day.day} - {formatDate(day.date)}
+                          </h3>
+                          <div className="space-y-4">
+                            {day.activities?.length > 0 ? (
+                              day.activities.map((activity, actIndex) => (
+                                <div key={actIndex} className="flex items-start space-x-4">
+                                  <div className="bg-purple-600 text-white text-sm px-3 py-1 rounded-full font-medium">
+                                    {formatTime(activity.time)}
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-white">{activity.activity}</h4>
+                                    {activity.location && (
+                                      <p className="text-gray-400 text-sm">{activity.location}</p>
+                                    )}
+                                    {activity.description && (
+                                      <p className="text-gray-300 text-sm mt-1">{activity.description}</p>
+                                    )}
+                                    {activity.estimatedCost > 0 && (
+                                      <p className="text-green-400 text-sm mt-1">
+                                        Est. Cost: {activity.estimatedCost} {trip.currency}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-gray-500 text-sm">No activities planned for this day.</p>
+                            )}
+                          </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <p>No itinerary found for this trip plan.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
 
                 {/* Flights Tab */}
                 {activeTab === 'flights' && (
                   <div className="space-y-6">
-                    {trip.aiResponse.flightOptions?.map((flight, index) => (
-                      <div key={index} className="bg-slate-700/50 rounded-xl p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold text-white">{flight.airline}</h3>
-                          <span className="text-green-400 font-semibold">{flight.price} {trip.currency}</span>
+                    {trip.aiResponse.flightOptions?.length > 0 ? (
+                      trip.aiResponse.flightOptions.map((flight, index) => (
+                        <div key={index} className="bg-slate-700/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-white">{flight.airline}</h3>
+                            <span className="text-green-400 font-semibold">{flight.price} {trip.currency}</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="font-medium text-white mb-2">Departure</h4>
+                              <p className="text-gray-300">{formatDate(flight.departure)}</p>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-white mb-2">Arrival</h4>
+                              <p className="text-gray-300">{formatDate(flight.arrival)}</p>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-white mb-2">Duration</h4>
+                              <p className="text-gray-300">{flight.duration}</p>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-white mb-2">Stops</h4>
+                              <p className="text-gray-300">{flight.stops} {flight.stops === 1 ? 'stop' : 'stops'}</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Departure</h4>
-                            <p className="text-gray-300">{formatDate(flight.departure)}</p>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Arrival</h4>
-                            <p className="text-gray-300">{formatDate(flight.arrival)}</p>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Duration</h4>
-                            <p className="text-gray-300">{flight.duration}</p>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Stops</h4>
-                            <p className="text-gray-300">{flight.stops} {flight.stops === 1 ? 'stop' : 'stops'}</p>
-                          </div>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <p>No flight options found for this trip plan.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
 
                 {/* Hotels Tab */}
                 {activeTab === 'hotels' && (
                   <div className="space-y-6">
-                    {trip.aiResponse.hotelOptions?.map((hotel, index) => (
-                      <div key={index} className="bg-slate-700/50 rounded-xl p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold text-white">{hotel.name}</h3>
-                          <div className="text-right">
-                            <p className="text-green-400 font-semibold">{hotel.pricePerNight} {trip.currency}/night</p>
-                            <p className="text-yellow-400 text-sm">★ {hotel.rating}</p>
+                    {trip.aiResponse.hotelOptions?.length > 0 ? (
+                      trip.aiResponse.hotelOptions.map((hotel, index) => (
+                        <div key={index} className="bg-slate-700/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-white">{hotel.name}</h3>
+                            <div className="text-right">
+                              <p className="text-green-400 font-semibold">{hotel.pricePerNight} {trip.currency}/night</p>
+                              <p className="text-yellow-400 text-sm">★ {hotel.rating}</p>
+                            </div>
+                          </div>
+                          <p className="text-gray-300 mb-4">{hotel.location}</p>
+                          <div>
+                            <h4 className="font-medium text-white mb-2">Amenities</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {hotel.amenities?.length > 0 ? (
+                                hotel.amenities.map((amenity, amenityIndex) => (
+                                  <span key={amenityIndex} className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full text-xs">
+                                    {amenity}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-gray-500 text-xs">No amenities listed.</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <p className="text-gray-300 mb-4">{hotel.location}</p>
-                        <div>
-                          <h4 className="font-medium text-white mb-2">Amenities</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {hotel.amenities?.map((amenity, amenityIndex) => (
-                              <span key={amenityIndex} className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full text-xs">
-                                {amenity}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <p>No hotel options found for this trip plan.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
 
@@ -506,14 +562,20 @@ const TripDetails: React.FC = () => {
                   <div className="space-y-6">
                     <div className="bg-slate-700/50 rounded-xl p-6">
                       <h3 className="text-lg font-semibold text-white mb-6">Budget Breakdown</h3>
-                      <div className="space-y-4">
-                        {trip.aiResponse.budgetBreakdown && Object.entries(trip.aiResponse.budgetBreakdown).map(([category, amount]) => (
-                          <div key={category} className="flex items-center justify-between">
-                            <span className="text-gray-300 capitalize">{category.replace(/([A-Z])/g, ' $1').trim()}</span>
-                            <span className="text-white font-semibold">{amount} {trip.currency}</span>
-                          </div>
-                        ))}
-                      </div>
+                      {trip.aiResponse.budgetBreakdown && Object.keys(trip.aiResponse.budgetBreakdown).length > 0 ? (
+                        <div className="space-y-4">
+                          {Object.entries(trip.aiResponse.budgetBreakdown).map(([category, amount]) => (
+                            <div key={category} className="flex items-center justify-between">
+                              <span className="text-gray-300 capitalize">{category.replace(/([A-Z])/g, ' $1').trim()}</span>
+                              <span className="text-white font-semibold">{amount} {trip.currency}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-400">
+                          <p>No budget breakdown available.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

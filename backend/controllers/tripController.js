@@ -175,6 +175,7 @@ const getUserTrips = async (req, res) => {
 // @access  Private
 const getTrip = async (req, res) => {
   try {
+    // Populate userChecklist as well when fetching a single trip
     const trip = await Trip.findById(req.params.id).populate('user', 'username email');
 
     if (!trip) {
@@ -324,6 +325,9 @@ const regenerateTrip = async (req, res) => {
     
     // Update trip with new AI response
     trip.aiResponse = aiResponse;
+    // Reset user checklist
+    trip.userChecklist = { items: [], lastModifiedAt: new Date() };
+
     await trip.save();
 
     res.json({

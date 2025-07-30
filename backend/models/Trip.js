@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { ChecklistItemSchema, UserChecklistSchema } = require('./Checklist');
 
 const tripSchema = new mongoose.Schema({
   user: {
@@ -55,18 +56,26 @@ const tripSchema = new mongoose.Schema({
     type: Date,
     required: [true, 'Start date is required'],
     validate: {
-      validator: function(value) {
-        return value >= new Date();
-      },
-      message: 'Start date must be in the future'
-    }
-  },
+    validator: function(value) {
+      // Allow saving if the existing trip's start date is already in the past,
+      // but prevent setting a new start date to the past.
+      if (this.isModified('startDate') || this.isNew) { // Only validate if new or changed
+        const now = new Date();
+        const todayUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
+        return value.getTime() >= todayUtc.getTime();
+      }
+      return true; // Don't re-validate if not modified and already in the past
+    },
+    message: 'Start date must be in the future'
+  }
+},
   endDate: {
     type: Date,
     required: [true, 'End date is required'],
     validate: {
       validator: function(value) {
-        return value > this.startDate;
+        // return value > this.startDate;
+        return value.getTime() >= this.startDate.getTime();
       },
       message: 'End date must be after start date'
     }
@@ -170,7 +179,13 @@ const tripSchema = new mongoose.Schema({
   isPublic: {
     type: Boolean,
     default: false
-  }
+  },
+  
+  //Embed the UserChecklistSchema here
+    userChecklist: {
+        type: UserChecklistSchema,
+        default: () => ({}) // Initialize with an empty object to ensure it's always present
+    }
 }, {
   timestamps: true
 });
