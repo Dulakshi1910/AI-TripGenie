@@ -17,7 +17,13 @@ const ChecklistPage: React.FC = () => {
     const [newItemText, setNewItemText] = useState('');
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    const [editingItemText, setEditingItemText] = useState('');
+    const [editingItemText, setEditingItemText] = useState<string>('');
+    const [editingDescriptionText, setEditingDescriptionText] = useState<string>(''); 
+    const [newItemDescription, setNewItemDescription] = useState('');
+    const [newItemTime, setNewItemTime] = useState('');
+    const [newItemDate, setNewItemDate] = useState(''); 
+    const [newItemLocation, setNewItemLocation] = useState('');
+    const [openDescriptionId, setOpenDescriptionId] = useState<string | null>(null); //handle description toggle
 
     // Fetch checklist data when component mounts or trip ID changes
     // Wrapped in useCallback to prevent unnecessary re-creation and optimize useEffect
@@ -72,53 +78,82 @@ const ChecklistPage: React.FC = () => {
     };
 
     const handleAddItem = async () => {
-        if (!newItemText.trim() || isAddingItem) return;
+    if (!newItemText.trim() || isAddingItem) return;
 
-        setIsAddingItem(true);
-        try {
-            // Determine the type of the new item based on the active tab
-            let itemType: ChecklistItem['type'];
-            switch (activeTab) {
-                case 'itinerary':
-                    itemType = 'activity';
-                    break;
-                case 'packing':
-                    itemType = 'packing';
-                    break;
-                case 'places':
-                    itemType = 'place';
-                    break;
-                default:
-                    itemType = 'custom'; // Fallback for any other unexpected tab
-            }
+    setIsAddingItem(true);
+    try {
+        let itemType: ChecklistItem['type'];
+        // Initialize an object to hold additional details
+        const additionalDetails: {
+            description?: string;
+            time?: string;
+            date?: string;
+            location?: string;
+        } = {};
 
-            const response = await tripApi.addChecklistItem(id!, {
-                item: newItemText.trim(),
-                checked: false,
-                type: itemType,
-            }) as { success: boolean; data: ChecklistItem }; // Assert response structure
-
-            if (response.success) {
-                setChecklistData(prevData => {
-                    // If no previous data, initialize with the new item
-                    if (!prevData) {
-                        return { items: [response.data], lastModifiedAt: new Date().toISOString() };
-                    }
-                    // Add new item to the existing list
-                    return { ...prevData, items: [...prevData.items, response.data], lastModifiedAt: new Date().toISOString() };
-                });
-                setNewItemText(''); // Clear input field
-            } else {
-                alert('Failed to add item: ' + (response.data as any)?.message || 'Unknown error.');
-            }
-        } catch (err: any) {
-            console.error('Error adding checklist item:', err);
-            alert(err.response?.data?.message || 'Failed to add item. Please try again.');
-        } finally {
-            setIsAddingItem(false);
+        switch (activeTab) {
+            case 'itinerary':
+                itemType = 'activity';
+                // For itinerary, likely include all details
+                if (newItemDescription.trim()) additionalDetails.description = newItemDescription.trim();
+                if (newItemTime.trim()) additionalDetails.time = newItemTime.trim();
+                if (newItemDate.trim()) additionalDetails.date = newItemDate.trim();
+                if (newItemLocation.trim()) additionalDetails.location = newItemLocation.trim();
+                break;
+            case 'packing':
+                itemType = 'packing';
+                // Packing items might only need a description, if at all
+                if (newItemDescription.trim()) additionalDetails.description = newItemDescription.trim();
+                break;
+            case 'places':
+                itemType = 'place';
+                // Places would definitely need location and possibly description
+                if (newItemDescription.trim()) additionalDetails.description = newItemDescription.trim();
+                if (newItemLocation.trim()) additionalDetails.location = newItemLocation.trim();
+                // Date/time might also be relevant for planned visits
+                if (newItemDate.trim()) additionalDetails.date = newItemDate.trim();
+                if (newItemTime.trim()) additionalDetails.time = newItemTime.trim();
+                break;
+            default:
+                itemType = 'custom'; // Fallback for any other unexpected tab
+                // Custom items could potentially have any of these
+                if (newItemDescription.trim()) additionalDetails.description = newItemDescription.trim();
+                if (newItemTime.trim()) additionalDetails.time = newItemTime.trim();
+                if (newItemDate.trim()) additionalDetails.date = newItemDate.trim();
+                if (newItemLocation.trim()) additionalDetails.location = newItemLocation.trim();
+                break;
         }
-    };
 
+        const response = await tripApi.addChecklistItem(id!, {
+            item: newItemText.trim(),
+            checked: false,
+            type: itemType,
+            ...additionalDetails, // Spread the additional details here
+        }) as { success: boolean; data: ChecklistItem };
+
+        if (response.success) {
+            setChecklistData(prevData => {
+                if (!prevData) {
+                    return { items: [response.data], lastModifiedAt: new Date().toISOString() };
+                }
+                return { ...prevData, items: [...prevData.items, response.data], lastModifiedAt: new Date().toISOString() };
+            });
+            setNewItemText(''); // Clear main input field
+            // Clear the new input fields after successful addition
+            setNewItemDescription('');
+            setNewItemTime('');
+            setNewItemDate('');
+            setNewItemLocation('');
+        } else {
+            alert('Failed to add item: ' + (response.data as any)?.message || 'Unknown error.');
+        }
+    } catch (err: any) {
+        console.error('Error adding checklist item:', err);
+        alert(err.response?.data?.message || 'Failed to add item. Please try again.');
+    } finally {
+        setIsAddingItem(false);
+    }
+};
     const handleDeleteItem = async (itemId: string) => {
         if (!window.confirm('Are you sure you want to delete this item?')) return;
 
@@ -145,6 +180,7 @@ const ChecklistPage: React.FC = () => {
         if (item._id) {
             setEditingItemId(item._id);
             setEditingItemText(item.item);
+            setEditingDescriptionText(item.description || '');
         }
     };
 
@@ -152,30 +188,30 @@ const ChecklistPage: React.FC = () => {
         if (!editingItemText.trim() || !itemId) return;
 
         try {
-            // Optimistic update
+            // Optimistic update for both item and description
             setChecklistData(prevData => {
                 if (!prevData) return null;
                 const updatedItems = prevData.items.map(item =>
-                    item._id === itemId ? { ...item, item: editingItemText.trim() } : item
+                    item._id === itemId
+                    ? { ...item, item: editingItemText.trim(), description: editingDescriptionText }
+                    : item
                 );
                 return { ...prevData, items: updatedItems, lastModifiedAt: new Date().toISOString() };
             });
 
-            // Make sure to preserve other properties when sending partial updates
-            // Fetch the current item to merge with updated text
-            const currentItem = checklistData?.items.find(item => item._id === itemId);
-            if (!currentItem) {
-                throw new Error("Item not found for editing.");
-            }
-            // Send only the changed 'item' field, backend should merge
-            await tripApi.updateChecklistItem(id!, itemId, { item: editingItemText.trim() });
-            
-            setEditingItemId(null); // Exit editing mode
-            setEditingItemText(''); // Clear editing text
+            // Send both fields to backend
+            await tripApi.updateChecklistItem(id!, itemId, {
+                item: editingItemText.trim(),
+                description: editingDescriptionText,
+            });
+
+            setEditingItemId(null);
+            setEditingItemText('');
+            setEditingDescriptionText('');
         } catch (err: any) {
             console.error('Error saving edit:', err);
             alert('Failed to save changes. Please try again.');
-            // Revert or re-fetch on failure
+            // Revert optimistic update by re-fetching data if API call fails
             fetchChecklist();
         }
     };
@@ -183,6 +219,10 @@ const ChecklistPage: React.FC = () => {
     const handleCancelEdit = () => {
         setEditingItemId(null);
         setEditingItemText('');
+    };
+
+    const handleToggleDescription = (id: string) => {
+    setOpenDescriptionId(openDescriptionId === id ? null : id);
     };
 
     // Helper to filter items by type
@@ -234,6 +274,40 @@ const ChecklistPage: React.FC = () => {
     // Helper to check if all activities for an itinerary day are complete
     const isItineraryDayComplete = (activities: ChecklistItem[]) => {
         return activities.length > 0 && activities.every(activity => activity.checked);
+    };
+
+    // Helper to extract unique places from both 'place' items and itinerary activities
+    const extractPlacesFromItinerary = () => {
+        const placeItems = getFilteredItems('place');
+        const itineraryItems = getFilteredItems('activity');
+
+        // Collect locations from itinerary activities
+        const itineraryPlaces = itineraryItems
+            .filter(item => item.location && item.location.trim())
+            .map(item => ({
+                // Use location as the unique key
+                _id: `itinerary-${item.location}`,
+                item: item.location ?? '', // Ensure item is always a string
+                location: item.location ?? '',
+                checked: false,
+                type: 'place' as ChecklistItem['type'],
+                description: '', // You can enhance this if you want to show more info
+            }));
+
+        // Merge, avoiding duplicates by location
+        const allPlacesMap = new Map<string, ChecklistItem>();
+        placeItems.forEach(item => {
+            if (item.location) {
+                allPlacesMap.set(item.location, item);
+            }
+        });
+        itineraryPlaces.forEach(item => {
+                    if (item.location && !allPlacesMap.has(item.location)) {
+                        allPlacesMap.set(item.location, item);
+                    }
+                });
+
+        return Array.from(allPlacesMap.values());
     };
 
     // Configuration for tabs, dynamically showing only tabs with data
@@ -333,21 +407,64 @@ const ChecklistPage: React.FC = () => {
                     {/* Tab Content */}
                     <div className="p-6">
                         {/* Add New Item Input */}
-                        <div className="mb-6 flex items-center space-x-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
+                        <input
+                            type="text"
+                            value={newItemText}
+                            onChange={(e) => setNewItemText(e.target.value)}
+                            placeholder={`Add new item to ${tabConfigs.find(t => t.id === activeTab)?.label || 'checklist'}...`}
+                            className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-500 border border-slate-600 focus:outline-none focus:border-purple-500 text-lg" // Added text-lg for slightly larger text
+                        />
+
+                        {/* Conditional inputs for additional details */}
+                        {(activeTab === 'itinerary' || activeTab === 'places' || activeTab === 'custom'|| activeTab === 'packing') && (
                             <input
                                 type="text"
-                                value={newItemText}
-                                onChange={(e) => setNewItemText(e.target.value)}
-                                placeholder={`Add new item to ${tabConfigs.find(t => t.id === activeTab)?.label || 'checklist'}...`}
-                                className="flex-1 px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-500 border border-slate-600 focus:outline-none focus:border-purple-500"
+                                value={newItemDescription}
+                                onChange={(e) => setNewItemDescription(e.target.value)}
+                                placeholder="Description (optional)"
+                                className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-500 border border-slate-600 focus:outline-none focus:border-purple-500"
                             />
-                            <button
+                        )}
+
+                        {/* Time and Date Inputs - Stacked Vertically */}
+                        {(activeTab === 'itinerary' || activeTab === 'custom') && (
+                            <div className="flex flex-col space-y-3"> {/* New container for stacking time/date */}
+                                <input
+                                    type="time"
+                                    value={newItemTime}
+                                    onChange={(e) => setNewItemTime(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-500 border border-slate-600 focus:outline-none focus:border-purple-500"
+                                />
+                                <input
+                                    type="date"
+                                    value={newItemDate}
+                                    onChange={(e) => setNewItemDate(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-500 border border-slate-600 focus:outline-none focus:border-purple-500"
+                                />
+                            </div>
+                        )}
+
+                        {/* Location Input */}
+                        {(activeTab === 'itinerary' || activeTab === 'custom') && (
+                            <input
+                                type="text"
+                                value={newItemLocation}
+                                onChange={(e) => setNewItemLocation(e.target.value)}
+                                placeholder="Location (optional)"
+                                className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-500 border border-slate-600 focus:outline-none focus:border-purple-500"
+                            />
+                        )}
+                            {/* Add Button (full width on mobile, right on desktop) */}
+                            <div className="md:col-span-2 flex">
+                                <button
                                 onClick={handleAddItem}
-                                disabled={isAddingItem || !newItemText.trim()} // Disable if adding or input is empty
-                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50"
-                            >
+                                disabled={isAddingItem || !newItemText.trim()}
+                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50 ml-auto"
+                                >
                                 {isAddingItem ? 'Adding...' : 'Add Item'}
-                            </button>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Itinerary Activities Tab Content */}
@@ -390,9 +507,22 @@ const ChecklistPage: React.FC = () => {
 
                                                             {/* Optional display for location and description */}
                                                             {activity.location && (
-                                                                <p className={`text-gray-400 text-sm ${activity.checked ? 'line-through' : ''}`}>
-                                                                    {activity.location}
-                                                                </p>
+                                                                <div className="flex items-center space-x-2 mt-1">
+                                                                    <span className={`text-gray-400 text-sm ${activity.checked ? 'line-through' : ''}`}>
+                                                                        {activity.location}
+                                                                    </span>
+                                                                    <a
+                                                                        href="#"
+                                                                        className="inline-flex items-center text-blue-400 hover:text-blue-300 text-xs underline"
+                                                                        title="View on Map"
+                                                                        // onClick={...} 
+                                                                    >
+                                                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c1.104 0 2-.896 2-2s-.896-2-2-2-2 .896-2 2 .896 2 2 2zm0 0c-4.418 0-8 1.79-8 4v3h16v-3c0-2.21-3.582-4-8-4z" />
+                                                                        </svg>
+                                                                        View on Map
+                                                                    </a>
+                                                                </div>
                                                             )}
                                                             {activity.description && (
                                                                 <p className={`text-gray-300 text-sm mt-1 ${activity.checked ? 'line-through' : ''}`}>
@@ -428,66 +558,120 @@ const ChecklistPage: React.FC = () => {
                         )}
 
                         {/* Other Tabs Content (Packing, Places) */}
-                        {['packing', 'places'].map(category => (
-                            activeTab === category && (
-                                getFilteredItems(category as ChecklistItem['type']).length > 0 ? (
+                        {['packing', 'places'].map(category => {
+                            if (activeTab !== category) {
+                                return null;
+                            }
+                            const items = category === 'packing'
+                                ? getFilteredItems(category as ChecklistItem['type'])
+                                : extractPlacesFromItinerary();
+
+                            if (items.length > 0) {
+                                return (
                                     <ul key={category} className="space-y-4">
-                                        {getFilteredItems(category as ChecklistItem['type']).map((item) => (
-                                            <li key={item._id} className="flex items-center bg-slate-700/50 p-4 rounded-lg shadow-inner">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={item.checked}
-                                                    onChange={() => item._id && handleCheckboxChange(item._id, item.checked)}
-                                                    className="form-checkbox h-6 w-6 text-purple-600 bg-gray-900 border-gray-600 rounded focus:ring-purple-500 transition-colors duration-200"
-                                                />
-                                                <div className="ml-4 flex-1">
-                                                    {editingItemId === item._id ? (
+                                        {items.map((item) => (
+                                            <li key={item._id} className="flex flex-col bg-slate-700/50 p-4 rounded-lg shadow-inner">
+                                                <div className="flex items-start">
+                                                    {category === 'packing' && (
                                                         <input
-                                                            type="text"
-                                                            value={editingItemText}
-                                                            onChange={(e) => setEditingItemText(e.target.value)}
-                                                            onKeyDown={(e) => e.key === 'Enter' && item._id && handleSaveEdit(item._id)}
-                                                            className="w-full px-2 py-1 rounded-md bg-slate-700 text-white focus:outline-none focus:border-purple-500"
+                                                            type="checkbox"
+                                                            checked={item.checked}
+                                                            onChange={() => item._id && handleCheckboxChange(item._id, item.checked)}
+                                                            className="form-checkbox h-6 w-6 text-purple-600 bg-gray-900 border-gray-600 rounded focus:ring-purple-500 transition-colors duration-200 mt-1"
                                                         />
-                                                    ) : (
-                                                        <span className={`text-lg text-white ${item.checked ? 'line-through text-gray-500' : ''}`}>
-                                                            {item.item}
-                                                        </span>
                                                     )}
+                                                    
+                                                    <div className="ml-4 flex-1">
+                                                        {editingItemId === item._id ? (
+                                                            <div className="flex flex-col space-y-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingItemText}
+                                                                    onChange={(e) => setEditingItemText(e.target.value)}
+                                                                    placeholder="Item Name"
+                                                                    className="w-full px-2 py-1 rounded-md bg-slate-700 text-white focus:outline-none focus:border-purple-500"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingDescriptionText}
+                                                                    onChange={(e) => setEditingDescriptionText(e.target.value)}
+                                                                    placeholder="Description"
+                                                                    className="w-full px-2 py-1 rounded-md bg-slate-700 text-white focus:outline-none focus:border-purple-500"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-between">
+                                                                <span className={`text-lg text-white font-medium ${item.checked ? 'line-through text-gray-500' : ''}`}>
+                                                                    {item.item}
+                                                                </span>
+                                                                {/* Show location link for places */}
+                                                                {category === 'places' && item.location && (
+                                                                    <a
+                                                                        href="#"
+                                                                        className="inline-flex items-center text-blue-400 hover:text-blue-300 text-xs underline ml-3"
+                                                                        title="View on Map"
+                                                                    >
+                                                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c1.104 0 2-.896 2-2s-.896-2-2-2-2 .896-2 2 .896 2 2 2zm0 0c-4.418 0-8 1.79-8 4v3h16v-3c0-2.21-3.582-4-8-4z" />
+                                                                        </svg>
+                                                                        {/* {item.location} */}
+                                                                        view on Map
+                                                                    </a>
+                                                                )}
+                                                                {item.description && (
+                                                                    <button
+                                                                        onClick={() => item._id && handleToggleDescription(item._id)}
+                                                                        className="ml-2 text-gray-400 hover:text-white transition-transform duration-200"
+                                                                    >
+                                                                        <svg
+                                                                            className={`h-5 w-5 transform ${openDescriptionId === item._id ? 'rotate-180' : 'rotate-0'}`}
+                                                                            xmlns="http://www.w3.org/2000/svg"
+                                                                            viewBox="0 0 20 20"
+                                                                            fill="currentColor"
+                                                                        >
+                                                                            <path
+                                                                                fillRule="evenodd"
+                                                                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                                                clipRule="evenodd"
+                                                                            />
+                                                                        </svg>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="ml-4 flex space-x-2">
+                                                        {editingItemId === item._id ? (
+                                                            <>
+                                                                <button onClick={() => item._id && handleSaveEdit(item._id)} className="text-green-400 hover:text-green-300">Save</button>
+                                                                <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-300">Cancel</button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button onClick={() => handleStartEditing(item)} className="text-blue-400 hover:text-blue-300">Edit</button>
+                                                                <button onClick={() => item._id && handleDeleteItem(item._id)} className="text-red-400 hover:text-red-300">Delete</button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="ml-4 flex space-x-2">
-                                                    {/* Booking Action Button (if exists) */}
-                                                    {item.bookingAction && (
-                                                        <button
-                                                            onClick={() => alert(`Simulating action for: ${item.bookingAction}`)}
-                                                            className="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700 transition-all whitespace-nowrap"
-                                                        >
-                                                            {item.bookingAction}
-                                                        </button>
-                                                    )}
-                                                    {/* Edit/Delete or Save/Cancel buttons */}
-                                                    {editingItemId === item._id ? (
-                                                        <>
-                                                            <button onClick={() => item._id && handleSaveEdit(item._id)} className="text-green-400 hover:text-green-300">Save</button>
-                                                            <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-300">Cancel</button>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <button onClick={() => handleStartEditing(item)} className="text-blue-400 hover:text-blue-300">Edit</button>
-                                                            <button onClick={() => item._id && handleDeleteItem(item._id)} className="text-red-400 hover:text-red-300">Delete</button>
-                                                        </>
-                                                    )}
-                                                </div>
+                                                {item.description && openDescriptionId === item._id && (
+                                                    <div className="ml-10 mt-2 text-gray-300 text-sm">
+                                                        <p>{item.description}</p>
+                                                    </div>
+                                                )}
                                             </li>
                                         ))}
                                     </ul>
-                                ) : (
+                                );
+                            } else {
+                                return (
                                     <div key={category} className="text-center py-8 text-gray-400">
                                         <p>No {category.replace(/([A-Z])/g, ' $1').toLowerCase()} items found for this trip plan.</p>
                                     </div>
-                                )
-                            )
-                        ))}
+                                );
+                            }
+                        })}
                     </div>
                 </div>
             </div>

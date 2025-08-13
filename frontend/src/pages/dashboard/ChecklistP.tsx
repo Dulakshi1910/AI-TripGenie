@@ -1,9 +1,8 @@
-// ../pages/dashboard/ChecklistOverview.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { tripApi } from '../../services/tripApi';
-import type { Trip, UserChecklist } from '../../services/tripApi'; // Import UserChecklist type
+import type { Trip, UserChecklist } from '../../services/tripApi'; 
 
 // Define a type for a trip with checklist summary
 interface TripWithChecklistSummary extends Trip {
@@ -15,13 +14,14 @@ interface TripWithChecklistSummary extends Trip {
 
 const ChecklistP: React.FC = () => {
   const [trips, setTrips] = useState<TripWithChecklistSummary[]>([]);
-  const [allTrips, setAllTrips] = useState<TripWithChecklistSummary[]>([]); // To hold all fetched trips
+  const [allTrips, setAllTrips] = useState<TripWithChecklistSummary[]>([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isSearching, setIsSearching] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchTripsAndChecklistSummaries();
@@ -44,9 +44,6 @@ const ChecklistP: React.FC = () => {
         const tripsWithSummaries: TripWithChecklistSummary[] = [];
 
         // Fetch checklist summary for each trip
-        // NOTE: This approach can be inefficient for many trips.
-        // Ideally, your backend should provide a /trips endpoint
-        // that can include a checklist summary or a dedicated /trips/:tripId/checklist/summary endpoint.
         for (const trip of fetchedTrips) {
           try {
             const checklistResponse = await tripApi.getUserChecklist(trip._id) as {
@@ -131,6 +128,55 @@ const ChecklistP: React.FC = () => {
     });
   };
 
+  // Helper to group trips by status
+  const groupTripsByStatus = (trips: TripWithChecklistSummary[]) => {
+    const groups: { [key: string]: TripWithChecklistSummary[] } = {
+      ongoing: [],
+      planning: [],
+      confirmed: [],
+      completed: [],
+      cancelled: [],
+      draft: [],
+      other: [],
+    };
+    trips.forEach(trip => {
+      switch (trip.status) {
+        case 'ongoing':
+          groups.ongoing.push(trip);
+          break;
+        case 'planning':
+        case 'confirmed':
+          groups.planning.push(trip); // treat both as "to be started"
+          break;
+        case 'completed':
+          groups.completed.push(trip);
+          break;
+        case 'cancelled':
+          groups.cancelled.push(trip);
+          break;
+        case 'draft':
+          groups.draft.push(trip);
+          break;
+        default:
+          groups.other.push(trip);
+      }
+    });
+    return groups;
+  };
+
+  // Add a filteredTrips variable based on statusFilter
+  const filteredTrips = statusFilter === 'all'
+    ? trips
+    : trips.filter(trip => {
+        if (statusFilter === 'planning') {
+          return trip.status === 'planning' || trip.status === 'confirmed';
+        }
+        return trip.status === statusFilter;
+      });
+
+  // Group filtered trips by status for display
+  const groupedTrips = groupTripsByStatus(filteredTrips);
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -156,6 +202,26 @@ const ChecklistP: React.FC = () => {
           >
             Plan New Trip
           </Link>
+        </div>
+
+        {/* Status Filter Dropdown */}
+        <div className="flex items-center space-x-4">
+          <label htmlFor="statusFilter" className="text-white font-medium">
+            Filter by Status:
+          </label>
+          <select
+            id="statusFilter"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="all">All</option>
+            <option value="ongoing">Continuing</option>
+            <option value="planning">To Be Started</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="draft">Draft</option>
+          </select>
         </div>
 
         {/* Search Filter */}
@@ -239,64 +305,332 @@ const ChecklistP: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {trips.map((trip) => (
-              <div key={trip._id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-all">
-                <div className="h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center relative">
-                  <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
-                </div>
-
-                <div className="p-6">
-                  <div className="mb-4">
-                    <h3 className="text-white font-semibold text-lg mb-1">{trip.tripName}</h3>
-                    <p className="text-gray-300 text-sm mb-2">{trip.destinationCountry}</p>
-                    <div className="flex items-center text-gray-400 text-sm">
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-                    </div>
-                  </div>
-
-                  {/* Checklist Summary */}
-                  {trip.checklistSummary ? (
-                    <div className="mb-4">
-                      <p className="text-gray-400 text-sm">Checklist Progress:</p>
-                      <div className="w-full bg-slate-700 rounded-full h-2.5 mt-1">
-                        <div
-                          className="bg-green-500 h-2.5 rounded-full"
-                          style={{
-                            width: `${trip.checklistSummary.totalItems > 0
-                              ? (trip.checklistSummary.checkedItems / trip.checklistSummary.totalItems) * 100
-                              : 0
-                            }%`
-                          }}
-                        ></div>
+          <>
+            {/* Ongoing Trips */}
+            {groupedTrips.ongoing.length > 0 && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-2 mt-6">Continuing Trips</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedTrips.ongoing.map((trip) => (
+                    <div key={trip._id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-all">
+                      <div className="h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center relative">
+                        <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
                       </div>
-                      <p className="text-gray-300 text-sm mt-1">
-                        {trip.checklistSummary.checkedItems} of {trip.checklistSummary.totalItems} items completed
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mb-4 text-gray-500 text-sm">
-                      No checklist data available.
-                    </div>
-                  )}
 
-                  <div className="flex space-x-2">
-                    <Link
-                      to={`/dashboard/trips/${trip._id}/checklist`}
-                      className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all text-center text-sm"
-                    >
-                      View Checklist
-                    </Link>
-                  </div>
+                      <div className="p-6">
+                        <div className="mb-4">
+                          <h3 className="text-white font-semibold text-lg mb-1">{trip.tripName}</h3>
+                          <p className="text-gray-300 text-sm mb-2">{trip.destinationCountry}</p>
+                          <div className="flex items-center text-gray-400 text-sm">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                          </div>
+                        </div>
+
+                        {/* Checklist Summary */}
+                        {trip.checklistSummary ? (
+                          <div className="mb-4">
+                            <p className="text-gray-400 text-sm">Checklist Progress:</p>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 mt-1">
+                              <div
+                                className="bg-green-500 h-2.5 rounded-full"
+                                style={{
+                                  width: `${trip.checklistSummary.totalItems > 0
+                                    ? (trip.checklistSummary.checkedItems / trip.checklistSummary.totalItems) * 100
+                                    : 0
+                                  }%`
+                                }}
+                              ></div>
+                            </div>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {trip.checklistSummary.checkedItems} of {trip.checklistSummary.totalItems} items completed
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mb-4 text-gray-500 text-sm">
+                            No checklist data available.
+                          </div>
+                        )}
+
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/dashboard/trips/${trip._id}/checklist`}
+                            className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all text-center text-sm"
+                          >
+                            View Checklist
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              </>
+            )}
+
+            {/* To Be Started Trips (Planning & Confirmed) */}
+            {groupedTrips.planning.length > 0 && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-2 mt-6">To Be Started Trips</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedTrips.planning.map((trip) => (
+                    <div key={trip._id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-all">
+                      <div className="h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center relative">
+                        <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="mb-4">
+                          <h3 className="text-white font-semibold text-lg mb-1">{trip.tripName}</h3>
+                          <p className="text-gray-300 text-sm mb-2">{trip.destinationCountry}</p>
+                          <div className="flex items-center text-gray-400 text-sm">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                          </div>
+                        </div>
+
+                        {/* Checklist Summary */}
+                        {trip.checklistSummary ? (
+                          <div className="mb-4">
+                            <p className="text-gray-400 text-sm">Checklist Progress:</p>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 mt-1">
+                              <div
+                                className="bg-green-500 h-2.5 rounded-full"
+                                style={{
+                                  width: `${trip.checklistSummary.totalItems > 0
+                                    ? (trip.checklistSummary.checkedItems / trip.checklistSummary.totalItems) * 100
+                                    : 0
+                                  }%`
+                                }}
+                              ></div>
+                            </div>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {trip.checklistSummary.checkedItems} of {trip.checklistSummary.totalItems} items completed
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mb-4 text-gray-500 text-sm">
+                            No checklist data available.
+                          </div>
+                        )}
+
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/dashboard/trips/${trip._id}/checklist`}
+                            className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all text-center text-sm"
+                          >
+                            View Checklist
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Completed Trips */}
+            {groupedTrips.completed.length > 0 && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-2 mt-6">Completed Trips</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedTrips.completed.map((trip) => (
+                    <div key={trip._id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-all">
+                      <div className="h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center relative">
+                        <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="mb-4">
+                          <h3 className="text-white font-semibold text-lg mb-1">{trip.tripName}</h3>
+                          <p className="text-gray-300 text-sm mb-2">{trip.destinationCountry}</p>
+                          <div className="flex items-center text-gray-400 text-sm">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                          </div>
+                        </div>
+
+                        {/* Checklist Summary */}
+                        {trip.checklistSummary ? (
+                          <div className="mb-4">
+                            <p className="text-gray-400 text-sm">Checklist Progress:</p>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 mt-1">
+                              <div
+                                className="bg-green-500 h-2.5 rounded-full"
+                                style={{
+                                  width: `${trip.checklistSummary.totalItems > 0
+                                    ? (trip.checklistSummary.checkedItems / trip.checklistSummary.totalItems) * 100
+                                    : 0
+                                  }%`
+                                }}
+                              ></div>
+                            </div>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {trip.checklistSummary.checkedItems} of {trip.checklistSummary.totalItems} items completed
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mb-4 text-gray-500 text-sm">
+                            No checklist data available.
+                          </div>
+                        )}
+
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/dashboard/trips/${trip._id}/checklist`}
+                            className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all text-center text-sm"
+                          >
+                            View Checklist
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Cancelled Trips */}
+            {groupedTrips.cancelled.length > 0 && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-2 mt-6">Cancelled Trips</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedTrips.cancelled.map((trip) => (
+                    <div key={trip._id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-all">
+                      <div className="h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center relative">
+                        <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="mb-4">
+                          <h3 className="text-white font-semibold text-lg mb-1">{trip.tripName}</h3>
+                          <p className="text-gray-300 text-sm mb-2">{trip.destinationCountry}</p>
+                          <div className="flex items-center text-gray-400 text-sm">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                          </div>
+                        </div>
+
+                        {/* Checklist Summary */}
+                        {trip.checklistSummary ? (
+                          <div className="mb-4">
+                            <p className="text-gray-400 text-sm">Checklist Progress:</p>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 mt-1">
+                              <div
+                                className="bg-green-500 h-2.5 rounded-full"
+                                style={{
+                                  width: `${trip.checklistSummary.totalItems > 0
+                                    ? (trip.checklistSummary.checkedItems / trip.checklistSummary.totalItems) * 100
+                                    : 0
+                                  }%`
+                                }}
+                              ></div>
+                            </div>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {trip.checklistSummary.checkedItems} of {trip.checklistSummary.totalItems} items completed
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mb-4 text-gray-500 text-sm">
+                            No checklist data available.
+                          </div>
+                        )}
+
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/dashboard/trips/${trip._id}/checklist`}
+                            className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all text-center text-sm"
+                          >
+                            View Checklist
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Draft/Other Trips (optional) */}
+            {groupedTrips.draft.length > 0 && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-2 mt-6">Draft Trips</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedTrips.draft.map((trip) => (
+                    <div key={trip._id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-all">
+                      <div className="h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center relative">
+                        <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="mb-4">
+                          <h3 className="text-white font-semibold text-lg mb-1">{trip.tripName}</h3>
+                          <p className="text-gray-300 text-sm mb-2">{trip.destinationCountry}</p>
+                          <div className="flex items-center text-gray-400 text-sm">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                          </div>
+                        </div>
+
+                        {/* Checklist Summary */}
+                        {trip.checklistSummary ? (
+                          <div className="mb-4">
+                            <p className="text-gray-400 text-sm">Checklist Progress:</p>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 mt-1">
+                              <div
+                                className="bg-green-500 h-2.5 rounded-full"
+                                style={{
+                                  width: `${trip.checklistSummary.totalItems > 0
+                                    ? (trip.checklistSummary.checkedItems / trip.checklistSummary.totalItems) * 100
+                                    : 0
+                                  }%`
+                                }}
+                              ></div>
+                            </div>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {trip.checklistSummary.checkedItems} of {trip.checklistSummary.totalItems} items completed
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mb-4 text-gray-500 text-sm">
+                            No checklist data available.
+                          </div>
+                        )}
+
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/dashboard/trips/${trip._id}/checklist`}
+                            className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all text-center text-sm"
+                          >
+                            View Checklist
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         )}
 
         {/* Pagination */}
